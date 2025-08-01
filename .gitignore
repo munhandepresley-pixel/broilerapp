@@ -27,3 +27,5 @@ yarn-error.log*
 
 .env.production
 .env*.local # Also good to ignore any local specific .env files
+.env
+.history/
