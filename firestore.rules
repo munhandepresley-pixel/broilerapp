@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdminClaim() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    function isStakeholderClaim() {
+      return isAuthenticated() && request.auth.token.role == 'stakeholder';
+    }
+
+    function isApprovedClaim() {
+      return isAuthenticated() && request.auth.token.isApproved == true;
+    }
+
+    // --- Default Deny Rule ---
+    match /{document=**} {
+      allow read, write: if (false);
+    }
+
+    // --- Main Match Block for 'artifacts' Collection ---
+    match /artifacts/{appId} {
+      allow read: if (isAuthenticated());
+
+      // NEWLY ADDED FOR USER MANAGEMENT: Allow admins to LIST (query) all user documents
+      match /users {
+        allow list: if true; // This is the key addition
+      }
+
+      match /users/{userId} {
+        // Temporary comment to force deploy
+
+        // READ for individual user document (get a specific one)
+        allow read: if (isAuthenticated() && (
+          request.auth.uid == userId ||
+          isAdminClaim()
+        ));
+
+        // CREATE for user document
+        allow create: if (isAuthenticated() && (
+            (request.auth.uid == userId && !exists(resource)) ||
+            isAdminClaim()
+        ));
+
+        // UPDATE for user document
+        allow update: if (isAuthenticated() && (
+            (isApprovedClaim() && request.auth.uid == userId) ||
+            isAdminClaim()
+        ));
+
+        // DELETE for user document
+        allow delete: if (isAuthenticated() && isAdminClaim());
+
+
+        // --- Rules for User-Specific Subcollections (Temporarily open for debugging) ---
+
+        // Broiler Batches specific to a user
+        match /broilerBatches/{batchId} { allow read, write: if (true); }
+
+        // Sales data specific to a user
+        match /salesRecords/{saleId} { allow read, write: if (true); }
+
+        // Mortality data specific to a user
+        match /mortalityRecords/{mortalityId} { allow read, write: if (true); }
+
+        // Expenses data specific to a user
+        match /expenses/{expenseId} { allow read, write: if (true); }
+
+        // Feed data specific to a user
+        match /feedRecords/{feedId} { allow read, write: if (true); }
+
+        // Financing data specific to a user
+        match /financingTransactions/{financeId} { allow read, write: if (true); } // Corrected name
+
+        // Weight tracking data specific to a user
+        match /weightRecords/{weightId} { allow read, write: if (true); }
+
+        // Supply Inventory specific to a user
+        match /supplyInventory/{supplyId} { allow read, write: if (true); }
+
+        // Health Records specific to a user
+        match /healthRecords/{healthRecordId} { allow read, write: if (true); }
+
+        // --- NEW: Supply Consumption specific to a user ---
+        match /supplyConsumption/{consumptionId} { allow read, write: if (true); } // Added for supply consumption
+      }
+    }
+
+    // --- Collection Group Rules (Temporarily open for debugging) ---
+    // These are for querying collections with the same name across different parent paths.
+
+    // Collection Group Rule for all 'broilerBatches' across the app
+    match /{path=**}/broilerBatches/{batchId} { allow read, write: if (true); }
+
+    // Collection Group Rule for 'salesRecords'
+    match /{path=**}/salesRecords/{saleId} { allow read, write: if (true); }
+
+    // Collection Group Rule for 'mortalityRecords'
+    match /{path=**}/mortalityRecords/{mortalityId} { allow read, write: if (true); }
+
+    // Collection Group Rule for 'feedRecords'
+    match /{path=**}/feedRecords/{feedId} { allow read, write: if (true); }
+
+    // Collection Group Rule for 'weightRecords'
+    match /{path=**}/weightRecords/{weightId} { allow read, write: if (true); }
+
+    // Collection Group Rule for 'supplyInventory'
+    match /{path=**}/supplyInventory/{supplyId} { allow read, write: if (true); }
+
+    // Collection Group Rule for 'healthRecords'
+    match /{path=**}/healthRecords/{healthRecordId} { allow read, write: if (true); }
+
+    // Collection Group Rule for 'financingTransactions' (Corrected name)
+    match /{path=**}/financingTransactions/{financeId} { allow read, write: if (true); } // Corrected name
+
+    // --- NEW: Collection Group Rule for 'supplyConsumption' across the app ---
+    match /{path=**}/supplyConsumption/{consumptionId} { allow read, write: if (true); } // Added for supply consumption
+  }
+}
